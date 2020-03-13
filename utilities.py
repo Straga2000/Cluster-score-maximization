@@ -12,6 +12,10 @@ STANDARD_LIST_SPLITTER = -1
 STANDARD_DICT_SPLITTER = -2
 STANDARD_NUMBER_SPLITTER = -3
 
+#GLOBAL VARIABLES
+FILLING_COUNTER = 0
+CLUSTER_ID = 0
+
 
 class Reader:
 
@@ -19,6 +23,7 @@ class Reader:
         self.clusterMatrix = None
 
     def read(self, name):
+        global OCCUPIED_ZONE, FREE_ZONE
 
         try:
             self.clusterMatrix = []
@@ -70,19 +75,25 @@ class Recognizer:
     def get_cluster_properties(self, id):
         return self.associativeLengthMap[id - START_ID_VALUE]
 
+    def get_cluster_matrix_value(self, i, j):
+        return self.clusterMatrix[i][j]
+
     def find_cluster_with_size(self, size):
+
         for elem in self.associativeLengthMap:
-            if size == elem[0]:
+            if size <= elem[0]:
                 return elem
 
-    def matrix_verify(self, i, j):
+        return -1, -1, -1
+
+    def matrix_verify(self, i, j, comp=FREE_ZONE):
 
         try:
 
             if i < 0 or j < 0:
                 return False
 
-            return self.clusterMatrix[i][j] == FREE_ZONE
+            return self.clusterMatrix[i][j] == comp
         except:
             return False
 
@@ -94,8 +105,30 @@ class Recognizer:
                     self.associativeLengthMap.append((self.mark_cluster(i, j), i, j))
                     self.currentId += 1
 
-    def fill_cluster(self, information):
-        pass
+    def fill_cluster(self, i, j, information, length):
+
+        print(i, j)
+
+        if length >= len(information):
+            return 0
+        elif CLUSTER_ID == self.clusterMatrix[i][j]:
+            self.clusterMatrix[i][j] = information[length]
+        else:
+            return 0
+
+        if self.matrix_verify(i + 1, j, CLUSTER_ID):
+            length += self.fill_cluster(i + 1, j, information, length + 1)
+
+        if self.matrix_verify(i - 1, j, CLUSTER_ID):
+            length += self.fill_cluster(i - 1, j, information, length + 1)
+
+        if self.matrix_verify(i, j + 1, CLUSTER_ID):
+            length += self.fill_cluster(i, j + 1, information, length + 1)
+
+        if self.matrix_verify(i, j - 1, CLUSTER_ID):
+            length += self.fill_cluster(i, j - 1, information, length + 1)
+
+        return 1
 
     def mark_cluster(self, i, j):
 
@@ -116,6 +149,16 @@ class Recognizer:
 
         return length
 
+    def update_cluster_matrix(self, message):
+        global CLUSTER_ID
+
+        size, positionX, positionY = self.find_cluster_with_size(len(message))
+        CLUSTER_ID = self.get_cluster_matrix_value(positionX, positionY)
+        self.fill_cluster(positionX, positionY, message, 0)
+        CLUSTER_ID = 0
+
+        return positionX, positionY, message
+
     def print_matrix(self):
         for line in self.clusterMatrix:
             print(*line)
@@ -128,6 +171,7 @@ class Encoder:
 
     def get_package(self, information):
         self.message = self.get_input(information)
+        return self.message
 
     def encode(self):
         pass
@@ -164,13 +208,18 @@ class Encoder:
 
 # MAIN
 readObject = Reader()
-readObject.read("input1.txt")
+readObject.read("input.txt")
 readObject.print_input()
 
 recognizerObject = Recognizer(readObject.get_matrix())
 recognizerObject.matrix_iterate()
 recognizerObject.print_matrix()
 #print(recognizerObject.get_cluster_properties(15))
-dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
+#dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
 encoderObject = Encoder()
-print(encoderObject.get_input(dictionary))
+message = encoderObject.get_package("ana are mere")
+
+print(*recognizerObject.update_cluster_matrix(message))
+print()
+
+recognizerObject.print_matrix()
