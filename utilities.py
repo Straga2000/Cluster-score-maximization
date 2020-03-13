@@ -4,7 +4,7 @@ from random import choice
 OCCUPIED_ZONE = 1
 FREE_ZONE = 0
 
-WIDTH = 50
+WIDTH = 256
 STANDARD_DIMENSION = (WIDTH, WIDTH)
 START_ID_VALUE = 2
 
@@ -22,6 +22,7 @@ class Reader:
     def __init__(self):
         self.clusterMatrix = None
 
+    # read cluster matrix from file or generate one
     def read(self, name):
         global OCCUPIED_ZONE, FREE_ZONE
 
@@ -43,6 +44,7 @@ class Reader:
         except:
             self.create_input(STANDARD_DIMENSION)
 
+    # create cluster matrix
     def create_input(self, dimensions):
 
         width, height = dimensions
@@ -51,7 +53,7 @@ class Reader:
         for i in range(width):
             line = []
             for j in range(height):
-                value = choice([OCCUPIED_ZONE, OCCUPIED_ZONE, FREE_ZONE])
+                value = choice([OCCUPIED_ZONE, FREE_ZONE])
                 line.append(value)
             self.clusterMatrix.append(line)
 
@@ -72,12 +74,15 @@ class Recognizer:
         self.currentId = START_ID_VALUE
         self.associativeLengthMap = []
 
+    # get cluster's size and start position with id
     def get_cluster_properties(self, id):
         return self.associativeLengthMap[id - START_ID_VALUE]
 
+    # get cluster's id
     def get_cluster_matrix_value(self, i, j):
         return self.clusterMatrix[i][j]
 
+    # return cluster to fit the input size
     def find_cluster_with_size(self, size):
 
         for elem in self.associativeLengthMap:
@@ -86,6 +91,7 @@ class Recognizer:
 
         return -1, -1, -1
 
+    # verify if a position exists and if it contains a specific element(comp)
     def matrix_verify(self, i, j, comp=FREE_ZONE):
 
         try:
@@ -97,6 +103,7 @@ class Recognizer:
         except:
             return False
 
+    # mark clusters with id
     def matrix_iterate(self):
 
         for i in range(self.width):
@@ -105,9 +112,10 @@ class Recognizer:
                     self.associativeLengthMap.append((self.mark_cluster(i, j), i, j))
                     self.currentId += 1
 
+    # fill cluster with input data
     def fill_cluster(self, i, j, information, length):
 
-        print(i, j)
+        #print(i, j)
 
         if length >= len(information):
             return 0
@@ -130,6 +138,7 @@ class Recognizer:
 
         return 1
 
+    # fill cluster with id
     def mark_cluster(self, i, j):
 
         self.clusterMatrix[i][j] = self.currentId
@@ -149,13 +158,17 @@ class Recognizer:
 
         return length
 
+    # update matrix with message
     def update_cluster_matrix(self, message):
         global CLUSTER_ID
 
         size, positionX, positionY = self.find_cluster_with_size(len(message))
-        CLUSTER_ID = self.get_cluster_matrix_value(positionX, positionY)
-        self.fill_cluster(positionX, positionY, message, 0)
-        CLUSTER_ID = 0
+        if positionY == -1 and positionX == -1:
+            print("No cluster with this dimension")
+        else:
+            CLUSTER_ID = self.get_cluster_matrix_value(positionX, positionY)
+            self.fill_cluster(positionX, positionY, message, 0)
+            CLUSTER_ID = 0
 
         return positionX, positionY, message
 
@@ -176,6 +189,7 @@ class Encoder:
     def encode(self):
         pass
 
+    # transform any structure into string
     def get_input(self, information):
         t = type(information)
         result = []
@@ -208,16 +222,16 @@ class Encoder:
 
 # MAIN
 readObject = Reader()
-readObject.read("input.txt")
+readObject.read("input1.txt")
 readObject.print_input()
 
 recognizerObject = Recognizer(readObject.get_matrix())
 recognizerObject.matrix_iterate()
 recognizerObject.print_matrix()
 #print(recognizerObject.get_cluster_properties(15))
-#dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
+dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
 encoderObject = Encoder()
-message = encoderObject.get_package("ana are mere")
+message = encoderObject.get_package(dictionary)
 
 print(*recognizerObject.update_cluster_matrix(message))
 print()
