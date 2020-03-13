@@ -3,7 +3,9 @@ from random import choice
 # CONSTANTS
 OCCUPIED_ZONE = 1
 FREE_ZONE = 0
-STANDARD_DIMENSION = (20, 20)
+
+WIDTH = 50
+STANDARD_DIMENSION = (WIDTH, WIDTH)
 START_ID_VALUE = 2
 
 class Reader:
@@ -63,6 +65,10 @@ class Recognizer:
     def matrix_verify(self, i, j):
 
         try:
+
+            if i < 0 or j < 0:
+                return False
+
             return self.clusterMatrix[i][j] == FREE_ZONE
         except:
             return False
@@ -72,7 +78,7 @@ class Recognizer:
         for i in range(self.width):
             for j in range(self.height):
                 if self.clusterMatrix[i][j] == FREE_ZONE:
-                    print(self.mark_cluster(i, j))
+                    self.associativeLengthMap.append(self.mark_cluster(i, j))
                     self.currentId += 1
 
     def mark_cluster(self, i, j):
@@ -82,21 +88,15 @@ class Recognizer:
 
         if self.matrix_verify(i + 1, j):
             length += self.mark_cluster(i + 1, j)
-        print(length, end=" ")
 
         if self.matrix_verify(i - 1, j):
             length += self.mark_cluster(i - 1, j)
-        print(length, end=" ")
 
         if self.matrix_verify(i, j + 1):
             length += self.mark_cluster(i, j + 1)
-        print(length, end=" ")
 
         if self.matrix_verify(i, j - 1):
             length += self.mark_cluster(i, j - 1)
-        print(length, end=" ")
-
-        print()
 
         return length
 
@@ -109,7 +109,7 @@ class Recognizer:
 # MAIN
 readObject = Reader()
 readObject.read("input1.txt")
-#readObject.print_input()
+readObject.print_input()
 
 recognizerObject = Recognizer(readObject.get_matrix())
 recognizerObject.matrix_iterate()
