@@ -8,6 +8,11 @@ WIDTH = 50
 STANDARD_DIMENSION = (WIDTH, WIDTH)
 START_ID_VALUE = 2
 
+STANDARD_LIST_SPLITTER = -1
+STANDARD_DICT_SPLITTER = -2
+STANDARD_NUMBER_SPLITTER = -3
+
+
 class Reader:
 
     def __init__(self):
@@ -62,6 +67,14 @@ class Recognizer:
         self.currentId = START_ID_VALUE
         self.associativeLengthMap = []
 
+    def get_cluster_properties(self, id):
+        return self.associativeLengthMap[id - START_ID_VALUE]
+
+    def find_cluster_with_size(self, size):
+        for elem in self.associativeLengthMap:
+            if size == elem[0]:
+                return elem
+
     def matrix_verify(self, i, j):
 
         try:
@@ -78,8 +91,11 @@ class Recognizer:
         for i in range(self.width):
             for j in range(self.height):
                 if self.clusterMatrix[i][j] == FREE_ZONE:
-                    self.associativeLengthMap.append(self.mark_cluster(i, j))
+                    self.associativeLengthMap.append((self.mark_cluster(i, j), i, j))
                     self.currentId += 1
+
+    def fill_cluster(self, information):
+        pass
 
     def mark_cluster(self, i, j):
 
@@ -106,6 +122,46 @@ class Recognizer:
         print()
 
 
+class Encoder:
+    def __init__(self):
+        self.message = ""
+
+    def get_package(self, information):
+        self.message = self.get_input(information)
+
+    def encode(self):
+        pass
+
+    def get_input(self, information):
+        t = type(information)
+        result = []
+
+        if t is int or t is float:
+            result.append(STANDARD_NUMBER_SPLITTER)
+            result.extend(self.get_input(str(information)))
+
+        if t is str:
+            result = list(information)
+
+        elif t is list or t is tuple:
+
+            for elem in information:
+
+                result.append(STANDARD_LIST_SPLITTER)
+                result.extend(self.get_input(elem))
+
+        elif t is dict:
+
+            for key in information:
+
+                result.append(STANDARD_DICT_SPLITTER)
+                result.extend(self.get_input(key))
+                result.append(STANDARD_DICT_SPLITTER)
+                result.extend(self.get_input(information[key]))
+
+        return result
+
+
 # MAIN
 readObject = Reader()
 readObject.read("input1.txt")
@@ -114,3 +170,7 @@ readObject.print_input()
 recognizerObject = Recognizer(readObject.get_matrix())
 recognizerObject.matrix_iterate()
 recognizerObject.print_matrix()
+#print(recognizerObject.get_cluster_properties(15))
+dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
+encoderObject = Encoder()
+print(encoderObject.get_input(dictionary))
