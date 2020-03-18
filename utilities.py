@@ -12,6 +12,8 @@ STANDARD_LIST_SPLITTER = -1
 STANDARD_DICT_SPLITTER = -2
 STANDARD_NUMBER_SPLITTER = -3
 
+STANDARD_UNUSED_SPACE = 64
+
 #GLOBAL VARIABLES
 FILLING_COUNTER = 0
 CLUSTER_ID = 0
@@ -21,6 +23,9 @@ class Reader:
 
     def __init__(self):
         self.clusterMatrix = None
+
+    def read_matrix_cluster(self, name):
+        pass
 
     # read cluster matrix from file or generate one
     def read(self, name):
@@ -42,10 +47,10 @@ class Reader:
                     self.clusterMatrix.append(line)
                     line = [int(elem) for elem in file.readline().split()]
         except:
-            self.create_input(STANDARD_DIMENSION)
+            self.create_input()
 
     # create cluster matrix
-    def create_input(self, dimensions):
+    def create_input(self, dimensions=STANDARD_DIMENSION):
 
         width, height = dimensions
         self.clusterMatrix = []
@@ -85,14 +90,25 @@ class Recognizer:
     # return cluster to fit the input size
     def find_cluster_with_size(self, size):
 
-        for elem in self.associativeLengthMap:
-            if size <= elem[0]:
-                return elem
+        minimal = STANDARD_UNUSED_SPACE
+        index = -1
+        for i in range(len(self.associativeLengthMap)):
+            #print(minimal, index)
+            value = self.associativeLengthMap[i][0] - size
 
-        return -1, -1, -1
+            if value == 0:
+                return self.associativeLengthMap[i]
+            elif 0 < value < minimal:
+                minimal = self.associativeLengthMap[i][0] - size
+                index = i
+
+        if index == -1:
+            return -1, -1, -1
+        else:
+            return self.associativeLengthMap[index]
 
     # verify if a position exists and if it contains a specific element(comp)
-    def matrix_verify(self, i, j, comp=FREE_ZONE):
+    def matrix_verify(self, i, j, comp= FREE_ZONE):
 
         try:
 
@@ -115,62 +131,91 @@ class Recognizer:
     # fill cluster with input data
     def fill_cluster(self, i, j, information, length):
 
-        #print(i, j)
-
         if length >= len(information):
             return 0
-        elif CLUSTER_ID == self.clusterMatrix[i][j]:
+        elif self.clusterMatrix[i][j] == CLUSTER_ID:
             self.clusterMatrix[i][j] = information[length]
-        else:
-            return 0
 
         if self.matrix_verify(i + 1, j, CLUSTER_ID):
             length += self.fill_cluster(i + 1, j, information, length + 1)
-
-        if self.matrix_verify(i - 1, j, CLUSTER_ID):
+        elif self.matrix_verify(i - 1, j, CLUSTER_ID):
             length += self.fill_cluster(i - 1, j, information, length + 1)
-
-        if self.matrix_verify(i, j + 1, CLUSTER_ID):
+        elif self.matrix_verify(i, j + 1, CLUSTER_ID):
             length += self.fill_cluster(i, j + 1, information, length + 1)
-
-        if self.matrix_verify(i, j - 1, CLUSTER_ID):
+        elif self.matrix_verify(i, j - 1, CLUSTER_ID):
             length += self.fill_cluster(i, j - 1, information, length + 1)
 
         return 1
 
     # fill cluster with id
-    def mark_cluster(self, i, j):
+    def mark_cluster(self, i, j, marker = None):
 
-        self.clusterMatrix[i][j] = self.currentId
+        if marker is None:
+            self.clusterMatrix[i][j] = self.currentId
+        else:
+            self.clusterMatrix[i][j] = marker
         length = 1
 
-        if self.matrix_verify(i + 1, j):
+        if self.matrix_verify(i + 1, j) and length < WIDTH:
             length += self.mark_cluster(i + 1, j)
-
-        if self.matrix_verify(i - 1, j):
+        elif self.matrix_verify(i - 1, j) and length < WIDTH:
             length += self.mark_cluster(i - 1, j)
-
-        if self.matrix_verify(i, j + 1):
+        elif self.matrix_verify(i, j + 1) and length < WIDTH:
             length += self.mark_cluster(i, j + 1)
-
-        if self.matrix_verify(i, j - 1):
+        elif self.matrix_verify(i, j - 1) and length < WIDTH:
             length += self.mark_cluster(i, j - 1)
 
         return length
+
+    """""
+    def search_for_id(self, i, j, searchId):
+
+        if searchId == self.clusterMatrix[i][j]:
+            return i, j
+
+        if self.matrix_verify(i + 1, j):
+            self.search_for_id(i + 1, j, searchId)
+        elif self.matrix_verify(i - 1, j):
+            self.search_for_id(i - 1, j, searchId)
+        elif self.matrix_verify(i, j + 1):
+            self.search_for_id(i, j + 1, searchId)
+        elif self.matrix_verify(i, j - 1):
+            self.search_for_id(i, j - 1, searchId)
+
+        return 0, 0
+    """""
 
     # update matrix with message
     def update_cluster_matrix(self, message):
         global CLUSTER_ID
 
         size, positionX, positionY = self.find_cluster_with_size(len(message))
+
+        print(size - len(message))
+
         if positionY == -1 and positionX == -1:
             print("No cluster with this dimension")
+            CLUSTER_ID = 0
         else:
             CLUSTER_ID = self.get_cluster_matrix_value(positionX, positionY)
             self.fill_cluster(positionX, positionY, message, 0)
-            CLUSTER_ID = 0
 
-        return positionX, positionY, message
+            """"
+            if size - len(message) != 0:
+                print(size - len(message))
+                positionX, positionY = self.search_for_id(positionX, positionY, CLUSTER_ID)
+                self.mark_cluster(positionX, positionY)
+                self.currentId += 1
+            """
+        return CLUSTER_ID, positionX, positionY, message
+
+    def enlarge_cluster_matrix(self):
+        for i in range(self.width - 1):
+            for j in range(self.height - 1):
+                if self.clusterMatrix[i][j] == OCCUPIED_ZONE and self.clusterMatrix[i][j + 1] == OCCUPIED_ZONE:
+                    if self.clusterMatrix[i + 1][j + 1] == OCCUPIED_ZONE or self.clusterMatrix[i + 1][j] == OCCUPIED_ZONE:
+                        # print("Am resetat elementul:", i, j)
+                        self.clusterMatrix[i][j] = FREE_ZONE
 
     def print_matrix(self):
         for line in self.clusterMatrix:
@@ -182,58 +227,84 @@ class Encoder:
     def __init__(self):
         self.message = ""
 
-    def get_package(self, information):
-        self.message = self.get_input(information)
+    def get_package(self, information, messType = "encripted"):
+        self.message = self.get_input(information, messType)
         return self.message
 
+    # create an encoder function for the message
     def encode(self):
         pass
 
     # transform any structure into string
-    def get_input(self, information):
-        t = type(information)
-        result = []
+    def get_input(self, information, messType = "encrypted"):
 
-        if t is int or t is float:
-            result.append(STANDARD_NUMBER_SPLITTER)
-            result.extend(self.get_input(str(information)))
+        if messType == "encrypted":
+            t = type(information)
+            result = []
 
-        if t is str:
-            result = list(information)
+            if t is int or t is float:
+                result.append(STANDARD_NUMBER_SPLITTER)
+                result.extend(self.get_input(str(information)))
 
-        elif t is list or t is tuple:
+            if t is str:
+                result.extend(list(information))
 
-            for elem in information:
+            if t is list or t is tuple:
 
-                result.append(STANDARD_LIST_SPLITTER)
-                result.extend(self.get_input(elem))
+                for elem in information:
 
-        elif t is dict:
+                    result.append(STANDARD_LIST_SPLITTER)
+                    result.extend(self.get_input(elem))
 
-            for key in information:
+            if t is dict:
 
-                result.append(STANDARD_DICT_SPLITTER)
-                result.extend(self.get_input(key))
-                result.append(STANDARD_DICT_SPLITTER)
-                result.extend(self.get_input(information[key]))
+                for key in information:
 
-        return result
+                    result.append(STANDARD_DICT_SPLITTER)
+                    result.extend(self.get_input(key))
+                    result.append(STANDARD_DICT_SPLITTER)
+                    result.extend(self.get_input(information[key]))
+
+            return result
+
+        if messType == "clear":
+            return information
+
+class MemoryUnlocker:
+    def __init__(self, clusterMatrix):
+        self.clusterMatrix = clusterMatrix
+
+    def decrypt_key(self, key):
+        return key
+
+    def get_key_property(self, key):
+        pass
+
 
 
 # MAIN
 readObject = Reader()
 readObject.read("input1.txt")
-readObject.print_input()
+#readObject.print_input()
 
 recognizerObject = Recognizer(readObject.get_matrix())
+
+#recognizerObject.print_matrix()
+
+recognizerObject.enlarge_cluster_matrix()
+#recognizerObject.print_matrix()
+
 recognizerObject.matrix_iterate()
-recognizerObject.print_matrix()
+#recognizerObject.print_matrix()
+
+#recognizerObject.print_matrix()
 #print(recognizerObject.get_cluster_properties(15))
 dictionary = {'ana': [1.60000023, 3.7, 4.5], 'are': [2.3, 1.0, 3], 'pere': [3, 4, 2]}
+objectList = [1, 2, 3, 4]
+name = "there a lot of things to live for, but not this one."
 encoderObject = Encoder()
-message = encoderObject.get_package(dictionary)
-
-print(*recognizerObject.update_cluster_matrix(message))
-print()
-
+message = encoderObject.get_package(name, "clear")
+# broken get_input function, needs to be redone
+obj = recognizerObject.update_cluster_matrix(message)
 recognizerObject.print_matrix()
+print(obj)
