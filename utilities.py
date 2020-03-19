@@ -1,4 +1,5 @@
 from random import choice
+from PIL import Image
 
 # CONSTANTS
 OCCUPIED_ZONE = 1
@@ -268,7 +269,7 @@ class Encoder:
             return result
 
         if messType == "clear":
-            return information
+            return [ord(x) for x in information]
 
 class MemoryUnlocker:
     def __init__(self, clusterMatrix):
@@ -280,7 +281,42 @@ class MemoryUnlocker:
     def get_key_property(self, key):
         pass
 
+class Writer:
+    def __init__(self):
+        self.image = Image.new("RGBA", (WIDTH//4, WIDTH//4), "black")
+        self.pixels = self.image.load()
+        self.clusterMatrix = None
 
+    def get_cluster_matrix(self,clusterMatrix):
+        self.clusterMatrix = clusterMatrix
+
+    def get_current_position(self):
+        for i in range(WIDTH):
+            for j in range(WIDTH):
+                yield i,j
+
+    def write_cluster_matrix(self):
+
+        pos = self.get_current_position()
+        m = self.clusterMatrix
+
+        for i in range(WIDTH//4):
+            for j in range(WIDTH//4):
+
+                pos1 = next(pos)
+                r = m[pos1[0]][pos1[1]]
+                pos1 = next(pos)
+                g = m[pos1[0]][pos1[1]]
+                pos1 = next(pos)
+                b = m[pos1[0]][pos1[1]]
+                pos1 = next(pos)
+                a = m[pos1[0]][pos1[1]]
+
+                #print(r, g, b, a)
+                self.pixels[i, j] = (r, g, b, a)
+
+    def show_cluster_matrix(self):
+        self.image.show()
 
 # MAIN
 readObject = Reader()
@@ -308,3 +344,8 @@ message = encoderObject.get_package(name, "clear")
 obj = recognizerObject.update_cluster_matrix(message)
 recognizerObject.print_matrix()
 print(obj)
+
+writer = Writer()
+writer.get_cluster_matrix(recognizerObject.clusterMatrix)
+writer.write_cluster_matrix()
+writer.show_cluster_matrix()
